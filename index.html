@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>داشبورد اطلاعات مکان‌محور</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+<style>
+:root{--green:#0aa657}
+*{font-family:'Vazirmatn'}
+html,body{margin:0;height:100%;overflow:hidden}
+#map{position:absolute;inset:0}
+
+/* Logo */
+#logoBox{position:absolute;top:15px;right:15px;z-index:20;text-align:center}
+#logoBox img{max-width:100px}
+#logoBox div{margin-top:6px;font-weight:600;color:var(--green)}
+
+/* Buttons */
+.fab{
+  position:absolute;width:44px;height:44px;border-radius:50%;
+  background:var(--green);color:#fff;border:none;
+  font-size:20px;cursor:pointer;z-index:20
+}
+#menuBtn{top:15px;left:15px}
+#legendBtn{bottom:15px;right:70px}
+#basemapBtn{bottom:15px;right:15px}
+#resetMapBtn{bottom:15px;right:125px}
+
+/* Sidebar */
+#sidebar{
+  position:absolute;top:0;left:-360px;width:360px;height:100%;
+  background:#fff;z-index:10;transition:left .3s;overflow-y:auto
+}
+#sidebar.open{left:0}
+
+/* Sidebar Header */
+#sidebarHeader{display:flex;justify-content:flex-start;padding:10px;border-bottom:1px solid #ccc}
+#closeSidebar{border:none;background:none;font-size:22px;cursor:pointer}
+
+/* Accordion */
+.accordion{border-bottom:1px solid #ccc}
+.accordion-header{padding:10px;background:#f2f2f2;font-weight:600;cursor:pointer}
+.accordion-content{display:none;padding:10px}
+.accordion.active .accordion-content{display:block}
+
+/* Filters */
+label{display:block;margin-top:8px}
+.filter-row{display:flex;gap:4px}
+select{flex:1;padding:6px}
+.clear{border:none;background:none;font-size:18px;cursor:pointer;opacity:.3}
+.clear.enabled{opacity:1}
+#resetFilters{width:100%;margin-top:10px;padding:8px;border:none;background:var(--green);color:#fff}
+
+/* Legend */
+#legend{
+  position:absolute;bottom:70px;right:15px;
+  background:#fff;padding:10px;border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.3);
+  display:none;z-index:20;width:220px
+}
+.legend-item{display:flex;justify-content:space-between}
+
+/* Images */
+.images{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.images img{width:100%;height:110px;object-fit:cover}
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div id="logoBox">
+  <img src="logo.png">
+  <div>داشبورد اطلاعات مکان‌محور</div>
+</div>
+
+<button id="menuBtn" class="fab">☰</button>
+<button id="legendBtn" class="fab">ℹ</button>
+<button id="basemapBtn" class="fab">🛰</button>
+<button id="resetMapBtn" class="fab">⟳</button>
+
+<div id="legend">
+  <div class="legend-item"><span>اماکن</span><input type="checkbox" id="togglePoints" checked></div>
+  <div class="legend-item"><span>مناطق</span><input type="checkbox" id="toggleDistricts" checked></div>
+</div>
+
+<div id="sidebar">
+  <div id="sidebarHeader">
+    <button id="closeSidebar">✕</button>
+  </div>
+
+  <div class="accordion active" id="accFilters">
+    <div class="accordion-header">فیلترها</div>
+    <div class="accordion-content">
+      <label>منطقه</label><div class="filter-row"><select id="District"></select><button class="clear" data-key="District">✕</button></div>
+      <label>موقعیت</label><div class="filter-row"><select id="District_InOut"></select><button class="clear" data-key="District_InOut">✕</button></div>
+      <label>قابلیت تدفین</label><div class="filter-row"><select id="Capability"></select><button class="clear" data-key="Capability">✕</button></div>
+      <label>شرایط تدفین</label><div class="filter-row"><select id="Burial_Condition"></select><button class="clear" data-key="Burial_Condition">✕</button></div>
+      <label>وضعیت تدفین</label><div class="filter-row"><select id="Burial_Status"></select><button class="clear" data-key="Burial_Status">✕</button></div>
+      <label>نام</label><div class="filter-row"><select id="Name"></select><button class="clear" data-key="Name">✕</button></div>
+      <button id="resetFilters">بازنشانی فیلترها</button>
+    </div>
+  </div>
+
+  <div class="accordion" id="accAttrs">
+    <div class="accordion-header">مشخصات</div>
+    <div class="accordion-content" id="attrs"></div>
+  </div>
+
+  <div class="accordion" id="accImgs">
+    <div class="accordion-header">تصاویر</div>
+    <div class="accordion-content"><div class="images" id="imgs"></div></div>
+  </div>
+</div>
+
+<script>
+mapboxgl.accessToken='pk.eyJ1IjoiZ2hvZGlzc28iLCJhIjoiY21lazE5dmZ5MDE1YjJrcTJlOXUwZWFjYiJ9.8zBtrI5PJGXm66JRxJaEmA';
+
+const FA_LABELS={
+  ID:"شناسه",Name:"نام",District:"منطقه",District_InOut:"موقعیت",
+  Proctor:"متولی",Capability:"قابلیت تدفین",
+  Burial_Condition:"شرایط تدفین",Burial_Capacity:"ظرفیت متوفی",
+  Burial_Price:"قیمت قبر",Burial_Status:"وضعیت تدفین",
+  Burial_Average:"متوسط تدفین ماهانه",Area:"مساحت"
+};
+
+const filterState={District:"",District_InOut:"",Capability:"",Burial_Condition:"",Burial_Status:"",Name:""};
+let map,allFeatures=[],filteredFeatures=[],districtsData;
+let selectedFeature=null,isSatellite=false;
+
+map=new mapboxgl.Map({
+  container:'map',
+  style:'mapbox://styles/mapbox/light-v11',
+  center:[51.4,35.7],zoom:10
+});
+
+Promise.all([
+  fetch('Data.json').then(r=>r.json()),
+  fetch('Districts.json').then(r=>r.json())
+]).then(([d,dist])=>{
+  allFeatures=d.features;
+  filteredFeatures=[...allFeatures];
+  districtsData=dist;
+  map.on('load',fullInit);
+});
+
+function fullInit(){
+  addSources();addLayers();bindUI();bindMap();
+  applyFilters(false);
+}
+
+function addSources(){
+  map.addSource('points',{type:'geojson',data:makePoints(filteredFeatures)});
+  map.addSource('polygons',{type:'geojson',data:{type:'FeatureCollection',features:filteredFeatures}});
+  map.addSource('districts',{type:'geojson',data:districtsData});
+}
+
+function addLayers(){
+  map.addLayer({id:'points',type:'circle',source:'points',paint:{'circle-radius':6,'circle-color':'#0aa657'}});
+  map.addLayer({id:'poly-fill',type:'fill',source:'polygons',paint:{'fill-color':'#0aa657','fill-opacity':.5},filter:['==',['get','ID'],-1]});
+  map.addLayer({id:'poly-line',type:'line',source:'polygons',paint:{'line-color':'#056b3b','line-width':2},filter:['==',['get','ID'],-1]});
+  map.addLayer({id:'district-line',type:'line',source:'districts',paint:{'line-color':'#000','line-width':2}});
+  map.addLayer({id:'district-label',type:'symbol',source:'districts',layout:{'text-field':['get','String_'],'text-size':12}});
+}
+
+function bindMap(){
+  map.on('click','points',e=>selectFeature(e.features[0].properties.ID));
+}
+
+function applyFilters(zoom=true){
+  filteredFeatures=allFeatures.filter(f=>Object.entries(filterState).every(([k,v])=>!v||String(f.properties[k])===String(v)));
+  map.getSource('points').setData(makePoints(filteredFeatures));
+  map.getSource('polygons').setData({type:'FeatureCollection',features:filteredFeatures});
+  clearSelection();
+  populateFilters();
+  if(zoom) fit(filteredFeatures);
+}
+
+function bindUI(){
+  menuBtn.onclick=()=>{sidebar.classList.add('open');menuBtn.style.display='none'};
+  closeSidebar.onclick=()=>{sidebar.classList.remove('open');menuBtn.style.display='block'};
+  resetFilters.onclick=resetAll;
+  resetMapBtn.onclick=resetAll;
+
+  legendBtn.onclick=e=>{e.stopPropagation();legend.style.display=legend.style.display==='block'?'none':'block'};
+  document.addEventListener('click',e=>{if(!legend.contains(e.target)&&e.target!==legendBtn) legend.style.display='none'});
+
+  basemapBtn.onclick=()=>{
+    const selectedID=selectedFeature?.properties?.ID;
+    isSatellite=!isSatellite;
+    map.setStyle(isSatellite?'mapbox://styles/mapbox/satellite-streets-v12':'mapbox://styles/mapbox/light-v11');
+    map.once('style.load',()=>{fullInit();if(selectedID) selectFeature(selectedID,false)});
+  };
+
+  togglePoints.onchange=()=>map.setLayoutProperty('points','visibility',togglePoints.checked?'visible':'none');
+  toggleDistricts.onchange=()=>{
+    map.setLayoutProperty('district-line','visibility',toggleDistricts.checked?'visible':'none');
+    map.setLayoutProperty('district-label','visibility',toggleDistricts.checked?'visible':'none');
+  };
+
+  document.querySelectorAll('.accordion-header').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('active'));
+
+  Object.keys(filterState).forEach(k=>document.getElementById(k).onchange=e=>{filterState[k]=e.target.value;applyFilters()});
+  document.querySelectorAll('.clear').forEach(b=>b.onclick=()=>{filterState[b.dataset.key]='';applyFilters()});
+}
+
+function selectFeature(id,zoom=true){
+  selectedFeature=filteredFeatures.find(f=>f.properties.ID===id);
+  if(!selectedFeature)return;
+
+  map.setFilter('poly-fill',['==',['get','ID'],id]);
+  map.setFilter('poly-line',['==',['get','ID'],id]);
+  map.setLayoutProperty('points','visibility','none');
+
+  accFilters.classList.remove('active');accAttrs.classList.add('active');accImgs.classList.add('active');
+  sidebar.classList.add('open');menuBtn.style.display='none';
+
+  attrs.innerHTML='';Object.entries(selectedFeature.properties).forEach(([k,v])=>{attrs.innerHTML+=`<div><b>${FA_LABELS[k]||k}:</b> ${format(v)}</div>`;});
+
+  imgs.innerHTML='';for(let i=1;i<=4;i++){loadImage(`Pictures/${id}/${i}.png`);loadImage(`Pictures/${id}/${i}.jpg`);}
+  if(zoom) fit([selectedFeature]);
+}
+
+function clearSelection(){
+  selectedFeature=null;
+  map.setFilter('poly-fill',['==',['get','ID'],-1]);
+  map.setFilter('poly-line',['==',['get','ID'],-1]);
+  map.setLayoutProperty('points','visibility','visible');
+  attrs.innerHTML='';imgs.innerHTML='';
+  accAttrs.classList.remove('active');accImgs.classList.remove('active');
+}
+
+function resetAll(){
+  Object.keys(filterState).forEach(k=>filterState[k]='');
+  applyFilters();
+}
+
+function populateFilters(){
+  Object.keys(filterState).forEach(k=>{
+    const s=document.getElementById(k);const prev=filterState[k];s.innerHTML='<option value="">همه</option>';
+    [...new Set(allFeatures.map(f=>f.properties[k]))].sort((a,b)=>String(a).localeCompare(String(b),'fa')).forEach(v=>s.innerHTML+=`<option value="${v}">${v}</option>`);
+    s.value=prev;
+  });
+  document.querySelectorAll('.clear').forEach(b=>b.classList.toggle('enabled',filterState[b.dataset.key]));
+}
+
+function makePoints(fs){
+  return {type:'FeatureCollection',features:fs.map(f=>{
+    const c=f.geometry.coordinates[0];const s=c.reduce((a,b)=>[a[0]+b[0],a[1]+b[1]],[0,0]);
+    return {type:'Feature',geometry:{type:'Point',coordinates:[s[0]/c.length,s[1]/c.length]},properties:f.properties};
+  })};
+}
+function format(v){if(v===null||v===undefined)return'';if(!isNaN(v))return Number(v).toLocaleString('fa-IR');return v;}
+function loadImage(src){const im=new Image();im.src=src;im.onload=()=>imgs.appendChild(im);}
+function fit(fs){if(!fs.length)return;const c=fs.flatMap(f=>f.geometry.coordinates[0]);map.fitBounds(c.reduce((b,p)=>b.extend(p),new mapboxgl.LngLatBounds(c[0],c[0])),{padding:sidebar.classList.contains('open')?{left:380}:40});}
+</script>
+</body>
+</html>
