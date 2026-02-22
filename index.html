@@ -19,15 +19,22 @@
 
       --ctrlGap: 10px;
 
-      /* sizes (desktop) */
+      /* desktop sizes */
       --fabSize: 46px;
-      --bmSize: 76px;
-      --bmRadius: 18px;
+      --bmSize: var(--fabSize);
+      --bmRadius: 14px;
 
-      /* right stack positions (desktop) */
+      /* desktop right stack */
       --rightBase: 12px;
       --legendRight: calc(var(--rightBase) + var(--bmSize) + var(--ctrlGap));
       --resetRight:  calc(var(--legendRight) + var(--fabSize) + var(--ctrlGap));
+
+      /* mobile centered group (computed in media query) */
+      --mGap: 12px;
+      --mGroupW: calc(var(--fabSize) * 3 + var(--mGap) * 2);
+      --mStart: calc(50% - (var(--mGroupW) / 2));
+      --mLegendLeft: calc(var(--mStart) + var(--fabSize) + var(--mGap));
+      --mResetLeft:  calc(var(--mLegendLeft) + var(--fabSize) + var(--mGap));
     }
 
     *{font-family:'Vazirmatn',sans-serif;box-sizing:border-box}
@@ -42,6 +49,7 @@
     #logoBox div{color:var(--green);font-weight:600;pointer-events:none;font-size:13px}
     body.hideLogo #logoBox{ display:none; }
 
+    /* green controls */
     .fab{
       position:absolute;
       width:var(--fabSize);height:var(--fabSize);
@@ -56,7 +64,7 @@
     .fab:active{transform:scale(.98)}
     #menuBtn{top:calc(12px + var(--safeT));left:12px}
 
-    /* Right-side order: basemap -> legend -> reset */
+    /* desktop order: basemap -> legend -> reset */
     #basemapBtn{
       position:absolute;
       bottom:calc(12px + var(--safeB));
@@ -68,16 +76,10 @@
       background:transparent;
       -webkit-tap-highlight-color: transparent;
     }
-    #legendBtn{
-      bottom:calc(12px + var(--safeB));
-      right:var(--legendRight);
-    }
-    #resetMapBtn{
-      bottom:calc(12px + var(--safeB));
-      right:var(--resetRight);
-    }
+    #legendBtn{bottom:calc(12px + var(--safeB));right:var(--legendRight)}
+    #resetMapBtn{bottom:calc(12px + var(--safeB));right:var(--resetRight)}
 
-    /* Refined Google-ish basemap card */
+    /* basemap card */
     #basemapBtn .bmCard{
       width:var(--bmSize);
       height:var(--bmSize);
@@ -86,45 +88,36 @@
       position:relative;
 
       border:1px solid rgba(0,0,0,.14);
-      box-shadow:
-        0 10px 22px rgba(0,0,0,.18),
-        0 2px  8px rgba(0,0,0,.12);
+      box-shadow: 0 10px 18px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.10);
       background:#fff;
       transform: translateZ(0);
     }
-
-    /* Inner border */
     #basemapBtn .bmCard::after{
       content:"";
-      position:absolute;
-      inset:0;
+      position:absolute;inset:0;
       border-radius:var(--bmRadius);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
       pointer-events:none;
       z-index:3;
     }
 
     #basemapBtn .bmThumb{
       position:absolute;inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display:flex;align-items:center;justify-content:center;
       text-align:center;
       z-index:1;
     }
 
-    /* ====== ✅ Image-like texture layers (pure CSS) ====== */
-    /* A texture overlay (grain + clouds + ridges) */
+    /* texture overlay */
     #basemapBtn .bmTexture{
-      position:absolute;inset:-10%;
+      position:absolute;inset:-12%;
       pointer-events:none;
       z-index:2;
       opacity:.55;
       mix-blend-mode: overlay;
-      transform: rotate(-6deg) scale(1.05);
+      transform: rotate(-6deg) scale(1.08);
       filter: contrast(1.05) saturate(1.05);
       background:
-        /* grain */
         repeating-linear-gradient(0deg,
           rgba(255,255,255,.03) 0px,
           rgba(255,255,255,.03) 1px,
@@ -137,12 +130,10 @@
           rgba(0,0,0,.02) 2px,
           rgba(0,0,0,.02) 4px
         ),
-        /* cloudy blobs */
         radial-gradient(circle at 20% 25%, rgba(255,255,255,.22), transparent 42%),
         radial-gradient(circle at 75% 30%, rgba(255,255,255,.18), transparent 46%),
         radial-gradient(circle at 35% 75%, rgba(255,255,255,.14), transparent 44%),
         radial-gradient(circle at 85% 80%, rgba(255,255,255,.10), transparent 48%),
-        /* subtle terrain ridges */
         repeating-linear-gradient(135deg,
           rgba(0,0,0,.05) 0px,
           rgba(0,0,0,.05) 2px,
@@ -150,12 +141,10 @@
           transparent 10px
         );
     }
-
-    /* different texture tuning per mode */
     #basemapBtn.preview-sat .bmTexture{
       opacity:.62;
       mix-blend-mode: soft-light;
-      filter: contrast(1.1) saturate(1.15);
+      filter: contrast(1.1) saturate(1.12);
     }
     #basemapBtn.preview-map .bmTexture{
       opacity:.48;
@@ -163,7 +152,7 @@
       filter: contrast(1.06) saturate(1.02);
     }
 
-    /* preview thumbnails (base colors) */
+    /* preview colors */
     #basemapBtn.preview-sat .bmThumb{
       background:
         radial-gradient(circle at 28% 25%, rgba(255,255,255,.34), transparent 42%),
@@ -175,32 +164,28 @@
         linear-gradient(135deg, #dff2ff, #f7fbff 58%, #e9ffe0);
     }
 
-    /* extra “photo highlight” sheen */
     #basemapBtn .bmSheen{
       position:absolute;inset:0;
       z-index:2;
       pointer-events:none;
       background:
         linear-gradient(135deg,
-          rgba(255,255,255,.50) 0%,
-          rgba(255,255,255,.18) 22%,
-          transparent 42%
+          rgba(255,255,255,.45) 0%,
+          rgba(255,255,255,.14) 26%,
+          transparent 45%
         );
-      opacity:.45;
+      opacity:.35;
     }
 
-    /* label */
     #basemapBtn .bmLabel{
-      font-size:11px;
+      font-size:9px;
       font-weight:700;
       line-height:1;
-      padding:6px 12px;
+      padding:5px 8px;
       border-radius:999px;
-
       background:rgba(255,255,255,.92);
       border:1px solid rgba(0,0,0,.12);
       color:#111;
-
       box-shadow: 0 2px 8px rgba(0,0,0,.12);
       backdrop-filter: blur(6px);
       z-index:4;
@@ -292,15 +277,33 @@
       :root{
         --sidebarW: 100vw;
         --fabSize: 52px;
-        --bmSize: 92px;
-        --bmRadius: 20px;
+        --bmSize: var(--fabSize);
+        --bmRadius: 16px;
 
-        --rightBase: 12px;
-        --legendRight: calc(var(--rightBase) + var(--bmSize) + var(--ctrlGap));
-        --resetRight:  calc(var(--legendRight) + var(--fabSize) + var(--ctrlGap));
+        /* recompute centered group with mobile size */
+        --mGroupW: calc(var(--fabSize) * 3 + var(--mGap) * 2);
+        --mStart: calc(50% - (var(--mGroupW) / 2));
+        --mLegendLeft: calc(var(--mStart) + var(--fabSize) + var(--mGap));
+        --mResetLeft:  calc(var(--mLegendLeft) + var(--fabSize) + var(--mGap));
       }
 
       .fab{border-radius:16px;font-size:22px}
+      #basemapBtn .bmLabel{font-size:10px}
+
+      /* ✅ Mobile: center the 3 buttons */
+      #basemapBtn{
+        right:auto !important;
+        left:var(--mStart) !important;
+        transform:none !important;
+      }
+      #legendBtn{
+        right:auto !important;
+        left:var(--mLegendLeft) !important;
+      }
+      #resetMapBtn{
+        right:auto !important;
+        left:var(--mResetLeft) !important;
+      }
 
       #sidebar{
         left:0;
@@ -314,6 +317,7 @@
       }
       #sidebar.open{ bottom:0; }
 
+      /* buttons behind sidebar when open on mobile */
       body.mobileSidebarOpen #basemapBtn,
       body.mobileSidebarOpen #legendBtn,
       body.mobileSidebarOpen #resetMapBtn{
@@ -511,6 +515,7 @@
   const resetFilters = $('resetFilters');
 
   function isMobile(){ return window.matchMedia('(max-width: 700px)').matches; }
+
   function setMobileSidebarOpenFlag(){
     if(!isMobile()){
       document.body.classList.remove('mobileSidebarOpen');
@@ -533,6 +538,16 @@
     return collator.compare(A,B);
   }
 
+  /* ✅ LOCK ROTATION: north always up */
+  function lockRotation(){
+    map.dragRotate.disable();
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    map.on('rotate', () => { map.rotateTo(0, { duration: 0 }); });
+    map.on('pitch', () => { map.setPitch(0); });
+  }
+
+  // fullscreen mobile sheet (only when selected)
   function setFullscreen(on){
     if(!isMobile()) return;
     sidebar.classList.toggle('fullscreen', !!on);
@@ -562,6 +577,7 @@
     },{passive:true});
   }
 
+  // accordion smooth engine
   function getAccContent(acc){ return acc.querySelector('.accordion-content'); }
   function syncAccHeight(acc){
     const c=getAccContent(acc); if(!c) return;
@@ -603,24 +619,33 @@
     }
   }
 
-  function restoreToFiltersKeepZoom(){
-    state.Name='';
-    selected=null;
+  function clearSelection(){
+    props.innerHTML='';
+    photos.innerHTML='';
+    photosHint.textContent='';
+    syncAccHeight(accProps);
+    syncAccHeight(accPhotos);
+  }
+
+  /* ✅ NEW: mobile dismiss behavior (close sidebar completely, do NOT show filters) */
+  function dismissMobileDetails(){
+    selected = null;
     isFs=false;
     setFullscreen(false);
     clearSelection();
-    openFiltersAccordion();
-    sidebar.classList.add('open');
-    menuBtn.style.display='none';
+    sidebar.classList.remove('open');
+    menuBtn.style.display='block';
     setMobileSidebarOpenFlag();
-    applyFilters(false);
+    // keep filters state as-is (do not open filters accordion here)
   }
 
   map=new mapboxgl.Map({
     container:'map',
     style:'https://api.parsimap.ir/styles/parsimap-streets-v11-gray?key=p142d0f3093fbf4d01b1cf8efd7b0ed26f8fc22926&service=true',
     center:[51.4,35.7],
-    zoom:10
+    zoom:10,
+    bearing:0,
+    pitch:0
   });
 
   Promise.all([
@@ -634,6 +659,7 @@
     bindUIOnce();
 
     map.on('load',()=>{
+      lockRotation();
       initAccordions();
       buildStyle();
       populateFiltersStepwise();
@@ -649,6 +675,7 @@
 
   map.on('style.load',()=>{
     if(!districts || !all.length) return;
+    lockRotation();
     buildStyle();
     syncSourcesData();
     restoreLayerVisibility();
@@ -656,27 +683,35 @@
   });
 
   function bindUIOnce(){
+    // ✅ Menu opens filters explicitly
     menuBtn.onclick=()=>{
+      openFiltersAccordion();
       sidebar.classList.add('open');
       menuBtn.style.display='none';
       setMobileSidebarOpenFlag();
     };
 
     closeSidebar.onclick=()=>{
+      // Desktop: normal close
       if(!isMobile()){
         sidebar.classList.remove('open');
         menuBtn.style.display='block';
         setMobileSidebarOpenFlag();
         return;
       }
-      if(selected || state.Name){
-        restoreToFiltersKeepZoom();
-      }else{
-        isFs=false; setFullscreen(false);
-        sidebar.classList.remove('open');
-        menuBtn.style.display='block';
-        setMobileSidebarOpenFlag();
+
+      // ✅ Mobile: if details are being shown, close sidebar completely (no filters)
+      if(selected){
+        dismissMobileDetails();
+        return;
       }
+
+      // Otherwise just close
+      isFs=false;
+      setFullscreen(false);
+      sidebar.classList.remove('open');
+      menuBtn.style.display='block';
+      setMobileSidebarOpenFlag();
     };
 
     legendBtn.onclick=(e)=>{
@@ -732,6 +767,24 @@
     };
 
     window.addEventListener('resize', setMobileSidebarOpenFlag);
+  }
+
+  function fc(features){ return {type:'FeatureCollection',features:features||[]}; }
+
+  function getPolygonRing(feature){
+    const g=feature?.geometry; if(!g) return null;
+    if(g.type==='Polygon') return Array.isArray(g.coordinates?.[0]) ? g.coordinates[0] : null;
+    if(g.type==='MultiPolygon') return Array.isArray(g.coordinates?.[0]?.[0]) ? g.coordinates[0][0] : null;
+    return null;
+  }
+
+  function points(fs){
+    const feats=(fs||[]).map(f=>{
+      const ring=getPolygonRing(f); if(!ring||!ring.length) return null;
+      let x=0,y=0; ring.forEach(p=>{x+=p[0];y+=p[1]});
+      return {type:'Feature',geometry:{type:'Point',coordinates:[x/ring.length,y/ring.length]},properties:(f.properties||{})};
+    }).filter(Boolean);
+    return {type:'FeatureCollection',features:feats};
   }
 
   function buildStyle(){
@@ -827,6 +880,29 @@
     updateClearButtons();
   }
 
+  function syncSourcesData(){
+    if(map.getSource('polys')) map.getSource('polys').setData(fc(filtered));
+    if(map.getSource('pts')) map.getSource('pts').setData(points(filtered));
+  }
+
+  function getFitPadding(){
+    if(!sidebar.classList.contains('open')) return 40;
+    if(isMobile()) return 30;
+    return {left:380,right:40,top:40,bottom:40};
+  }
+
+  function fitToFeatures(fs){
+    if(!fs||!fs.length) return;
+    const pts=[];
+    for(const f of fs){
+      const ring=getPolygonRing(f);
+      if(ring && ring.length) pts.push(...ring);
+    }
+    if(!pts.length) return;
+    const b=pts.reduce((bounds,pt)=>bounds.extend(pt), new mapboxgl.LngLatBounds(pts[0],pts[0]));
+    map.fitBounds(b,{padding:getFitPadding(),duration:650});
+  }
+
   function applyFilters(zoom=true){
     filtered=all.filter(f=>matchesState(f,null));
     syncSourcesData();
@@ -845,8 +921,12 @@
     map.on('click',(e)=>{
       const hits=map.queryRenderedFeatures(e.point,{layers:['pts','poly-fill']});
       if(hits && hits.length) return;
-      if(!selected && !state.Name) return;
-      restoreToFiltersKeepZoom();
+
+      // ✅ On mobile: if a feature is selected, close sidebar completely (no filters)
+      if(isMobile() && selected){
+        dismissMobileDetails();
+        return;
+      }
     });
   }
 
@@ -905,54 +985,6 @@
       else done(null);
     };
     img.src=`${base}.png`;
-  }
-
-  function clearSelection(){
-    props.innerHTML='';
-    photos.innerHTML='';
-    photosHint.textContent='';
-    syncAccHeight(accProps); syncAccHeight(accPhotos);
-  }
-
-  function fc(features){ return {type:'FeatureCollection',features:features||[]}; }
-
-  function getPolygonRing(feature){
-    const g=feature?.geometry; if(!g) return null;
-    if(g.type==='Polygon') return Array.isArray(g.coordinates?.[0]) ? g.coordinates[0] : null;
-    if(g.type==='MultiPolygon') return Array.isArray(g.coordinates?.[0]?.[0]) ? g.coordinates[0][0] : null;
-    return null;
-  }
-
-  function points(fs){
-    const feats=(fs||[]).map(f=>{
-      const ring=getPolygonRing(f); if(!ring||!ring.length) return null;
-      let x=0,y=0; ring.forEach(p=>{x+=p[0];y+=p[1]});
-      return {type:'Feature',geometry:{type:'Point',coordinates:[x/ring.length,y/ring.length]},properties:(f.properties||{})};
-    }).filter(Boolean);
-    return {type:'FeatureCollection',features:feats};
-  }
-
-  function syncSourcesData(){
-    if(map.getSource('polys')) map.getSource('polys').setData(fc(filtered));
-    if(map.getSource('pts')) map.getSource('pts').setData(points(filtered));
-  }
-
-  function fitToFeatures(fs){
-    if(!fs||!fs.length) return;
-    const pts=[];
-    for(const f of fs){
-      const ring=getPolygonRing(f);
-      if(ring && ring.length) pts.push(...ring);
-    }
-    if(!pts.length) return;
-    const b=pts.reduce((bounds,pt)=>bounds.extend(pt), new mapboxgl.LngLatBounds(pts[0],pts[0]));
-    map.fitBounds(b,{padding:getFitPadding(),duration:650});
-  }
-
-  function getFitPadding(){
-    if(!sidebar.classList.contains('open')) return 40;
-    if(isMobile()) return 30;
-    return {left:380,right:40,top:40,bottom:40};
   }
 
   function toFa(v){
