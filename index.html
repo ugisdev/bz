@@ -29,7 +29,7 @@
       --legendRight: calc(var(--rightBase) + var(--bmSize) + var(--ctrlGap));
       --resetRight:  calc(var(--legendRight) + var(--fabSize) + var(--ctrlGap));
 
-      /* mobile centered group (computed in media query) */
+      /* mobile centered group */
       --mGap: 12px;
       --mGroupW: calc(var(--fabSize) * 3 + var(--mGap) * 2);
       --mStart: calc(50% - (var(--mGroupW) / 2));
@@ -86,7 +86,6 @@
       border-radius:var(--bmRadius);
       overflow:hidden;
       position:relative;
-
       border:1px solid rgba(0,0,0,.14);
       box-shadow: 0 10px 18px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.10);
       background:#fff;
@@ -280,7 +279,6 @@
         --bmSize: var(--fabSize);
         --bmRadius: 16px;
 
-        /* recompute centered group with mobile size */
         --mGroupW: calc(var(--fabSize) * 3 + var(--mGap) * 2);
         --mStart: calc(50% - (var(--mGroupW) / 2));
         --mLegendLeft: calc(var(--mStart) + var(--fabSize) + var(--mGap));
@@ -290,20 +288,10 @@
       .fab{border-radius:16px;font-size:22px}
       #basemapBtn .bmLabel{font-size:10px}
 
-      /* ✅ Mobile: center the 3 buttons */
-      #basemapBtn{
-        right:auto !important;
-        left:var(--mStart) !important;
-        transform:none !important;
-      }
-      #legendBtn{
-        right:auto !important;
-        left:var(--mLegendLeft) !important;
-      }
-      #resetMapBtn{
-        right:auto !important;
-        left:var(--mResetLeft) !important;
-      }
+      /* mobile: centered group */
+      #basemapBtn{right:auto !important;left:var(--mStart) !important}
+      #legendBtn{right:auto !important;left:var(--mLegendLeft) !important}
+      #resetMapBtn{right:auto !important;left:var(--mResetLeft) !important}
 
       #sidebar{
         left:0;
@@ -317,7 +305,6 @@
       }
       #sidebar.open{ bottom:0; }
 
-      /* buttons behind sidebar when open on mobile */
       body.mobileSidebarOpen #basemapBtn,
       body.mobileSidebarOpen #legendBtn,
       body.mobileSidebarOpen #resetMapBtn{
@@ -392,37 +379,37 @@
       <div class="accordion-content">
         <div class="accordion-inner">
 
-          <label id="lblDistrict">منطقه</label>
+          <label>منطقه</label>
           <div class="filter-row">
             <select id="fDistrict"></select>
             <button class="clear-btn" id="xDistrict" title="پاک کردن">✕</button>
           </div>
 
-          <label id="lblInOut">موقعیت</label>
+          <label>موقعیت</label>
           <div class="filter-row">
             <select id="fInOut"></select>
             <button class="clear-btn" id="xInOut" title="پاک کردن">✕</button>
           </div>
 
-          <label id="lblCap">قابلیت تدفین</label>
+          <label>قابلیت تدفین</label>
           <div class="filter-row">
             <select id="fCap"></select>
             <button class="clear-btn" id="xCap" title="پاک کردن">✕</button>
           </div>
 
-          <label id="lblCond">شرایط تدفین</label>
+          <label>شرایط تدفین</label>
           <div class="filter-row">
             <select id="fCond"></select>
             <button class="clear-btn" id="xCond" title="پاک کردن">✕</button>
           </div>
 
-          <label id="lblStatus">وضعیت تدفین</label>
+          <label>وضعیت تدفین</label>
           <div class="filter-row">
             <select id="fStatus"></select>
             <button class="clear-btn" id="xStatus" title="پاک کردن">✕</button>
           </div>
 
-          <label id="lblName">نام</label>
+          <label>نام</label>
           <div class="filter-row">
             <select id="fName"></select>
             <button class="clear-btn" id="xName" title="پاک کردن">✕</button>
@@ -538,7 +525,7 @@
     return collator.compare(A,B);
   }
 
-  /* ✅ LOCK ROTATION: north always up */
+  /* LOCK ROTATION */
   function lockRotation(){
     map.dragRotate.disable();
     map.touchZoomRotate.disableRotation();
@@ -627,7 +614,7 @@
     syncAccHeight(accPhotos);
   }
 
-  /* ✅ NEW: mobile dismiss behavior (close sidebar completely, do NOT show filters) */
+  /* NEW: mobile dismiss behavior (close sidebar completely, do NOT show filters) */
   function dismissMobileDetails(){
     selected = null;
     isFs=false;
@@ -636,7 +623,19 @@
     sidebar.classList.remove('open');
     menuBtn.style.display='block';
     setMobileSidebarOpenFlag();
-    // keep filters state as-is (do not open filters accordion here)
+  }
+
+  /* ✅ NEW: desktop restore behavior (keep sidebar open, show filters, keep zoom) */
+  function restoreDesktopAfterDetails(){
+    selected = null;
+    isFs=false;
+    setFullscreen(false);
+    clearSelection();
+    openFiltersAccordion();
+    sidebar.classList.add('open');
+    menuBtn.style.display='none';
+    setMobileSidebarOpenFlag();
+    applyFilters(false); // restore all features WITHOUT changing zoom
   }
 
   map=new mapboxgl.Map({
@@ -683,7 +682,7 @@
   });
 
   function bindUIOnce(){
-    // ✅ Menu opens filters explicitly
+    // Menu explicitly opens filters
     menuBtn.onclick=()=>{
       openFiltersAccordion();
       sidebar.classList.add('open');
@@ -699,14 +698,11 @@
         setMobileSidebarOpenFlag();
         return;
       }
-
-      // ✅ Mobile: if details are being shown, close sidebar completely (no filters)
+      // Mobile: if details showing, close completely (no filters)
       if(selected){
         dismissMobileDetails();
         return;
       }
-
-      // Otherwise just close
       isFs=false;
       setFullscreen(false);
       sidebar.classList.remove('open');
@@ -922,7 +918,13 @@
       const hits=map.queryRenderedFeatures(e.point,{layers:['pts','poly-fill']});
       if(hits && hits.length) return;
 
-      // ✅ On mobile: if a feature is selected, close sidebar completely (no filters)
+      // ✅ Desktop: restore to filters (keep sidebar open)
+      if(!isMobile() && selected){
+        restoreDesktopAfterDetails();
+        return;
+      }
+
+      // ✅ Mobile: dismiss details (close sidebar completely)
       if(isMobile() && selected){
         dismissMobileDetails();
         return;
@@ -1000,6 +1002,8 @@
       .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
       .replaceAll('"','&quot;').replaceAll("'","&#039;");
   }
+
+  setBasemapPreview();
 </script>
 </body>
 </html>
