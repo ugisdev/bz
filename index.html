@@ -1,264 +1,973 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="utf-8">
-<title>داشبورد اطلاعات مکان‌محور</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <title>داشبورد اطلاعات مکان‌محور</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600&display=swap" rel="stylesheet">
-<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.parsimap.ir/third-party/mapbox-gl-js/v1.13.0/mapbox-gl.css" rel="stylesheet"/>
+  <script src="https://cdn.parsimap.ir/third-party/mapbox-gl-js/v1.13.0/mapbox-gl.js"></script>
 
-<style>
-:root{--green:#0aa657}
-*{font-family:'Vazirmatn'}
-html,body{margin:0;height:100%;overflow:hidden}
-#map{position:absolute;inset:0}
+  <style>
+    :root{
+      --green:#2e7d32;
+      --sidebarW:360px;
+      --safeB: env(safe-area-inset-bottom, 0px);
+      --safeT: env(safe-area-inset-top, 0px);
+      --accDur: 260ms;
 
-/* Logo */
-#logoBox{position:absolute;top:15px;right:15px;z-index:20;text-align:center}
-#logoBox img{max-width:100px}
-#logoBox div{margin-top:6px;font-weight:600;color:var(--green)}
+      --ctrlGap: 10px;
 
-/* Buttons */
-.fab{
-  position:absolute;width:44px;height:44px;border-radius:50%;
-  background:var(--green);color:#fff;border:none;
-  font-size:20px;cursor:pointer;z-index:20
-}
-#menuBtn{top:15px;left:15px}
-#legendBtn{bottom:15px;right:70px}
-#basemapBtn{bottom:15px;right:15px}
-#resetMapBtn{bottom:15px;right:125px}
+      /* sizes (desktop) */
+      --fabSize: 46px;
+      --bmSize: 76px;
+      --bmRadius: 18px;
 
-/* Sidebar */
-#sidebar{
-  position:absolute;top:0;left:-360px;width:360px;height:100%;
-  background:#fff;z-index:10;transition:left .3s;overflow-y:auto
-}
-#sidebar.open{left:0}
+      /* right stack positions (desktop) */
+      --rightBase: 12px;
+      --legendRight: calc(var(--rightBase) + var(--bmSize) + var(--ctrlGap));
+      --resetRight:  calc(var(--legendRight) + var(--fabSize) + var(--ctrlGap));
+    }
 
-/* Sidebar Header */
-#sidebarHeader{display:flex;justify-content:flex-start;padding:10px;border-bottom:1px solid #ccc}
-#closeSidebar{border:none;background:none;font-size:22px;cursor:pointer}
+    *{font-family:'Vazirmatn',sans-serif;box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden}
+    #map{position:absolute;inset:0}
 
-/* Accordion */
-.accordion{border-bottom:1px solid #ccc}
-.accordion-header{padding:10px;background:#f2f2f2;font-weight:600;cursor:pointer}
-.accordion-content{display:none;padding:10px}
-.accordion.active .accordion-content{display:block}
+    #logoBox{
+      position:absolute;top:calc(12px + var(--safeT));right:12px;
+      z-index:10;text-align:center;pointer-events:none
+    }
+    #logoBox img{max-width:86px;pointer-events:auto}
+    #logoBox div{color:var(--green);font-weight:600;pointer-events:none;font-size:13px}
+    body.hideLogo #logoBox{ display:none; }
 
-/* Filters */
-label{display:block;margin-top:8px}
-.filter-row{display:flex;gap:4px}
-select{flex:1;padding:6px}
-.clear{border:none;background:none;font-size:18px;cursor:pointer;opacity:.3}
-.clear.enabled{opacity:1}
-#resetFilters{width:100%;margin-top:10px;padding:8px;border:none;background:var(--green);color:#fff}
+    .fab{
+      position:absolute;
+      width:var(--fabSize);height:var(--fabSize);
+      border-radius:14px;
+      background:var(--green);color:#fff;border:none;
+      font-size:20px;cursor:pointer;z-index:10;
+      box-shadow:none;
+      display:flex;align-items:center;justify-content:center;
+      -webkit-tap-highlight-color: transparent;
+      user-select:none;
+    }
+    .fab:active{transform:scale(.98)}
+    #menuBtn{top:calc(12px + var(--safeT));left:12px}
 
-/* Legend */
-#legend{
-  position:absolute;bottom:70px;right:15px;
-  background:#fff;padding:10px;border-radius:8px;
-  box-shadow:0 2px 6px rgba(0,0,0,.3);
-  display:none;z-index:20;width:220px
-}
-.legend-item{display:flex;justify-content:space-between}
+    /* Right-side order: basemap -> legend -> reset */
+    #basemapBtn{
+      position:absolute;
+      bottom:calc(12px + var(--safeB));
+      right:var(--rightBase);
+      z-index:10;
+      border:none;
+      cursor:pointer;
+      padding:0;
+      background:transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #legendBtn{
+      bottom:calc(12px + var(--safeB));
+      right:var(--legendRight);
+    }
+    #resetMapBtn{
+      bottom:calc(12px + var(--safeB));
+      right:var(--resetRight);
+    }
 
-/* Images */
-.images{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
-.images img{width:100%;height:110px;object-fit:cover}
-</style>
+    /* Refined Google-ish basemap card */
+    #basemapBtn .bmCard{
+      width:var(--bmSize);
+      height:var(--bmSize);
+      border-radius:var(--bmRadius);
+      overflow:hidden;
+      position:relative;
+
+      border:1px solid rgba(0,0,0,.14);
+      box-shadow:
+        0 10px 22px rgba(0,0,0,.18),
+        0 2px  8px rgba(0,0,0,.12);
+      background:#fff;
+      transform: translateZ(0);
+    }
+
+    /* Inner border */
+    #basemapBtn .bmCard::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius:var(--bmRadius);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+      pointer-events:none;
+      z-index:3;
+    }
+
+    #basemapBtn .bmThumb{
+      position:absolute;inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      z-index:1;
+    }
+
+    /* ====== ✅ Image-like texture layers (pure CSS) ====== */
+    /* A texture overlay (grain + clouds + ridges) */
+    #basemapBtn .bmTexture{
+      position:absolute;inset:-10%;
+      pointer-events:none;
+      z-index:2;
+      opacity:.55;
+      mix-blend-mode: overlay;
+      transform: rotate(-6deg) scale(1.05);
+      filter: contrast(1.05) saturate(1.05);
+      background:
+        /* grain */
+        repeating-linear-gradient(0deg,
+          rgba(255,255,255,.03) 0px,
+          rgba(255,255,255,.03) 1px,
+          rgba(0,0,0,.02) 2px,
+          rgba(0,0,0,.02) 3px
+        ),
+        repeating-linear-gradient(90deg,
+          rgba(255,255,255,.02) 0px,
+          rgba(255,255,255,.02) 1px,
+          rgba(0,0,0,.02) 2px,
+          rgba(0,0,0,.02) 4px
+        ),
+        /* cloudy blobs */
+        radial-gradient(circle at 20% 25%, rgba(255,255,255,.22), transparent 42%),
+        radial-gradient(circle at 75% 30%, rgba(255,255,255,.18), transparent 46%),
+        radial-gradient(circle at 35% 75%, rgba(255,255,255,.14), transparent 44%),
+        radial-gradient(circle at 85% 80%, rgba(255,255,255,.10), transparent 48%),
+        /* subtle terrain ridges */
+        repeating-linear-gradient(135deg,
+          rgba(0,0,0,.05) 0px,
+          rgba(0,0,0,.05) 2px,
+          transparent 3px,
+          transparent 10px
+        );
+    }
+
+    /* different texture tuning per mode */
+    #basemapBtn.preview-sat .bmTexture{
+      opacity:.62;
+      mix-blend-mode: soft-light;
+      filter: contrast(1.1) saturate(1.15);
+    }
+    #basemapBtn.preview-map .bmTexture{
+      opacity:.48;
+      mix-blend-mode: multiply;
+      filter: contrast(1.06) saturate(1.02);
+    }
+
+    /* preview thumbnails (base colors) */
+    #basemapBtn.preview-sat .bmThumb{
+      background:
+        radial-gradient(circle at 28% 25%, rgba(255,255,255,.34), transparent 42%),
+        linear-gradient(135deg, #3a4b6b, #0c0f15 55%, #2b4a34);
+    }
+    #basemapBtn.preview-map .bmThumb{
+      background:
+        radial-gradient(circle at 25% 25%, rgba(255,255,255,.95), transparent 45%),
+        linear-gradient(135deg, #dff2ff, #f7fbff 58%, #e9ffe0);
+    }
+
+    /* extra “photo highlight” sheen */
+    #basemapBtn .bmSheen{
+      position:absolute;inset:0;
+      z-index:2;
+      pointer-events:none;
+      background:
+        linear-gradient(135deg,
+          rgba(255,255,255,.50) 0%,
+          rgba(255,255,255,.18) 22%,
+          transparent 42%
+        );
+      opacity:.45;
+    }
+
+    /* label */
+    #basemapBtn .bmLabel{
+      font-size:11px;
+      font-weight:700;
+      line-height:1;
+      padding:6px 12px;
+      border-radius:999px;
+
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(0,0,0,.12);
+      color:#111;
+
+      box-shadow: 0 2px 8px rgba(0,0,0,.12);
+      backdrop-filter: blur(6px);
+      z-index:4;
+      position:relative;
+    }
+    #basemapBtn.preview-sat .bmLabel{
+      background:rgba(0,0,0,.30);
+      border-color:rgba(255,255,255,.18);
+      color:#fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,.22);
+    }
+
+    /* Sidebar */
+    #sidebar{
+      position:absolute;top:0;left:calc(-1 * var(--sidebarW));width:var(--sidebarW);height:100%;
+      background:#fff;z-index:9;
+      overflow:auto;
+      border-right:1px solid #e6e6e6;
+      -webkit-overflow-scrolling: touch;
+      transition: left .25s, bottom .25s, top .25s, height .25s, border-radius .25s;
+    }
+    #sidebar.open{left:0}
+
+    #sidebarHeader{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:12px;border-bottom:1px solid #ddd;position:sticky;top:0;background:#fff;z-index:2
+    }
+    #closeSidebar{border:none;background:none;font-size:22px;cursor:pointer;line-height:1}
+
+    /* Smooth accordion */
+    .accordion{border-bottom:1px solid #eee}
+    .accordion-header{
+      padding:12px;background:#f6f6f6;font-weight:600;cursor:pointer;user-select:none;
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .accordion-header .chev{transition:transform var(--accDur) ease; font-size:18px; opacity:.75}
+    .accordion.active .accordion-header .chev{transform:rotate(180deg)}
+    .accordion-content{
+      overflow:hidden;
+      max-height:0;
+      opacity:0;
+      transition: max-height var(--accDur) ease, opacity var(--accDur) ease;
+      will-change:max-height,opacity;
+    }
+    .accordion-inner{padding:12px}
+    .accordion.active .accordion-content{opacity:1}
+
+    label{display:block;margin-top:10px;font-size:14px}
+    .filter-row{display:flex;gap:8px;align-items:center}
+    select{
+      width:100%;padding:10px 10px;border:1px solid #ddd;border-radius:12px;background:#fff;
+      font-size:15px;
+    }
+    .clear-btn{
+      width:40px;height:40px;border-radius:12px;
+      border:1px solid #ddd;background:#fff;color:#333;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      flex:0 0 40px;
+    }
+    .clear-btn[disabled]{opacity:.35;cursor:not-allowed}
+    .reset{
+      width:100%;margin-top:12px;padding:12px;border:none;border-radius:12px;
+      background:var(--green);color:#fff;cursor:pointer;
+      box-shadow:none;
+      font-size:15px;
+    }
+    .muted{color:#777;font-size:13px}
+
+    #legend{
+      position:absolute;
+      bottom:calc(96px + var(--safeB));
+      right:var(--rightBase);
+      background:#fff;padding:10px;border-radius:14px;
+      border:1px solid #e6e6e6;
+      box-shadow:0 10px 22px rgba(0,0,0,.14);
+      display:none;z-index:10;min-width:180px;
+      max-height:45vh;overflow:auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .legend-row{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+
+    .images{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .images img{
+      width:100%;height:120px;object-fit:cover;border-radius:14px;border:1px solid #eee;
+      cursor:pointer;
+    }
+
+    @media (max-width: 700px){
+      :root{
+        --sidebarW: 100vw;
+        --fabSize: 52px;
+        --bmSize: 92px;
+        --bmRadius: 20px;
+
+        --rightBase: 12px;
+        --legendRight: calc(var(--rightBase) + var(--bmSize) + var(--ctrlGap));
+        --resetRight:  calc(var(--legendRight) + var(--fabSize) + var(--ctrlGap));
+      }
+
+      .fab{border-radius:16px;font-size:22px}
+
+      #sidebar{
+        left:0;
+        top:auto;
+        bottom:calc(-72vh - var(--safeB));
+        width:100vw;
+        height:72vh;
+        border-right:none;
+        border-top:1px solid #e6e6e6;
+        border-radius:18px 18px 0 0;
+      }
+      #sidebar.open{ bottom:0; }
+
+      body.mobileSidebarOpen #basemapBtn,
+      body.mobileSidebarOpen #legendBtn,
+      body.mobileSidebarOpen #resetMapBtn{
+        z-index:1 !important;
+        pointer-events:none !important;
+        opacity:0.0;
+      }
+    }
+
+    @media (max-width: 700px){
+      #sidebar.fullscreen{
+        height:calc(100vh - var(--safeT) - var(--safeB));
+        bottom:0 !important;
+        top:0 !important;
+        border-radius:0 !important;
+        border-top:none !important;
+      }
+      #sidebar.fullscreen #sidebarHeader{
+        padding-top:calc(12px + var(--safeT));
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <div id="map"></div>
 
-<div id="map"></div>
-
-<div id="logoBox">
-  <img src="logo.png">
-  <div>داشبورد اطلاعات مکان‌محور</div>
-</div>
-
-<button id="menuBtn" class="fab">☰</button>
-<button id="legendBtn" class="fab">ℹ</button>
-<button id="basemapBtn" class="fab">🛰</button>
-<button id="resetMapBtn" class="fab">⟳</button>
-
-<div id="legend">
-  <div class="legend-item"><span>اماکن</span><input type="checkbox" id="togglePoints" checked></div>
-  <div class="legend-item"><span>مناطق</span><input type="checkbox" id="toggleDistricts" checked></div>
-</div>
-
-<div id="sidebar">
-  <div id="sidebarHeader">
-    <button id="closeSidebar">✕</button>
+  <div id="logoBox">
+    <img src="logo.png" alt="logo">
+    <div>داشبورد اطلاعات مکان‌محور</div>
   </div>
 
-  <div class="accordion active" id="accFilters">
-    <div class="accordion-header">فیلترها</div>
-    <div class="accordion-content">
-      <label>منطقه</label><div class="filter-row"><select id="District"></select><button class="clear" data-key="District">✕</button></div>
-      <label>موقعیت</label><div class="filter-row"><select id="District_InOut"></select><button class="clear" data-key="District_InOut">✕</button></div>
-      <label>قابلیت تدفین</label><div class="filter-row"><select id="Capability"></select><button class="clear" data-key="Capability">✕</button></div>
-      <label>شرایط تدفین</label><div class="filter-row"><select id="Burial_Condition"></select><button class="clear" data-key="Burial_Condition">✕</button></div>
-      <label>وضعیت تدفین</label><div class="filter-row"><select id="Burial_Status"></select><button class="clear" data-key="Burial_Status">✕</button></div>
-      <label>نام</label><div class="filter-row"><select id="Name"></select><button class="clear" data-key="Name">✕</button></div>
-      <button id="resetFilters">بازنشانی فیلترها</button>
+  <button id="menuBtn" class="fab" title="منو">☰</button>
+
+  <button id="basemapBtn" class="preview-sat" title="تغییر نقشه" aria-label="basemap">
+    <div class="bmCard">
+      <div class="bmThumb"></div>
+      <div class="bmTexture"></div>
+      <div class="bmSheen"></div>
+      <div class="bmThumb" style="background:transparent; z-index:4;">
+        <span id="bmLabel" class="bmLabel">ماهواره</span>
+      </div>
+    </div>
+  </button>
+
+  <button id="legendBtn" class="fab" title="لایه‌ها" aria-label="layers">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M12 3 2 8l10 5 10-5-10-5Zm0 7.2L4.4 8 12 4.8 19.6 8 12 10.2ZM2 12l10 5 10-5v2l-10 5-10-5v-2Zm0 6 10 5 10-5v2l-10 5-10-5v-2Z"/>
+    </svg>
+  </button>
+
+  <button id="resetMapBtn" class="fab" title="بازنشانی" aria-label="reset">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 12.65-5.65Z"/>
+    </svg>
+  </button>
+
+  <div id="legend" aria-label="legend">
+    <div class="legend-row"><span>نقاط</span><input type="checkbox" id="chkPoints" checked></div>
+    <div class="legend-row"><span>پلیگون‌ها</span><input type="checkbox" id="chkPolys" checked></div>
+    <div class="legend-row"><span>مناطق</span><input type="checkbox" id="chkDistricts" checked></div>
+  </div>
+
+  <div id="sidebar" aria-label="sidebar">
+    <div id="sidebarHeader">
+      <b>اطلاعات</b>
+      <button id="closeSidebar" title="بستن">✕</button>
+    </div>
+
+    <div class="accordion active" id="accFilters">
+      <div class="accordion-header">فیلترها <span class="chev">⌄</span></div>
+      <div class="accordion-content">
+        <div class="accordion-inner">
+
+          <label id="lblDistrict">منطقه</label>
+          <div class="filter-row">
+            <select id="fDistrict"></select>
+            <button class="clear-btn" id="xDistrict" title="پاک کردن">✕</button>
+          </div>
+
+          <label id="lblInOut">موقعیت</label>
+          <div class="filter-row">
+            <select id="fInOut"></select>
+            <button class="clear-btn" id="xInOut" title="پاک کردن">✕</button>
+          </div>
+
+          <label id="lblCap">قابلیت تدفین</label>
+          <div class="filter-row">
+            <select id="fCap"></select>
+            <button class="clear-btn" id="xCap" title="پاک کردن">✕</button>
+          </div>
+
+          <label id="lblCond">شرایط تدفین</label>
+          <div class="filter-row">
+            <select id="fCond"></select>
+            <button class="clear-btn" id="xCond" title="پاک کردن">✕</button>
+          </div>
+
+          <label id="lblStatus">وضعیت تدفین</label>
+          <div class="filter-row">
+            <select id="fStatus"></select>
+            <button class="clear-btn" id="xStatus" title="پاک کردن">✕</button>
+          </div>
+
+          <label id="lblName">نام</label>
+          <div class="filter-row">
+            <select id="fName"></select>
+            <button class="clear-btn" id="xName" title="پاک کردن">✕</button>
+          </div>
+
+          <button id="resetFilters" class="reset">بازنشانی فیلترها</button>
+          <div class="muted" id="countBox" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" id="accProps">
+      <div class="accordion-header">مشخصات <span class="chev">⌄</span></div>
+      <div class="accordion-content">
+        <div class="accordion-inner" id="props"></div>
+      </div>
+    </div>
+
+    <div class="accordion" id="accPhotos">
+      <div class="accordion-header">تصاویر <span class="chev">⌄</span></div>
+      <div class="accordion-content">
+        <div class="accordion-inner">
+          <div class="images" id="photos"></div>
+          <div class="muted" id="photosHint" style="margin-top:8px"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="accordion" id="accAttrs">
-    <div class="accordion-header">مشخصات</div>
-    <div class="accordion-content" id="attrs"></div>
-  </div>
-
-  <div class="accordion" id="accImgs">
-    <div class="accordion-header">تصاویر</div>
-    <div class="accordion-content"><div class="images" id="imgs"></div></div>
-  </div>
-</div>
-
 <script>
-mapboxgl.accessToken='pk.eyJ1IjoiZ2hvZGlzc28iLCJhIjoiY21lazE5dmZ5MDE1YjJrcTJlOXUwZWFjYiJ9.8zBtrI5PJGXm66JRxJaEmA';
+  mapboxgl.setRTLTextPlugin(
+    'https://cdn.parsimap.ir/third-party/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js',
+    null,
+  )
 
-const FA_LABELS={
-  ID:"شناسه",Name:"نام",District:"منطقه",District_InOut:"موقعیت",
-  Proctor:"متولی",Capability:"قابلیت تدفین",
-  Burial_Condition:"شرایط تدفین",Burial_Capacity:"ظرفیت متوفی",
-  Burial_Price:"قیمت قبر",Burial_Status:"وضعیت تدفین",
-  Burial_Average:"متوسط تدفین ماهانه",Area:"مساحت"
-};
-
-const filterState={District:"",District_InOut:"",Capability:"",Burial_Condition:"",Burial_Status:"",Name:""};
-let map,allFeatures=[],filteredFeatures=[],districtsData;
-let selectedFeature=null,isSatellite=false;
-
-map=new mapboxgl.Map({
-  container:'map',
-  style:'mapbox://styles/mapbox/light-v11',
-  center:[51.4,35.7],zoom:10
-});
-
-Promise.all([
-  fetch('Data.json').then(r=>r.json()),
-  fetch('Districts.json').then(r=>r.json())
-]).then(([d,dist])=>{
-  allFeatures=d.features;
-  filteredFeatures=[...allFeatures];
-  districtsData=dist;
-  map.on('load',fullInit);
-});
-
-function fullInit(){
-  addSources();addLayers();bindUI();bindMap();
-  applyFilters(false);
-}
-
-function addSources(){
-  map.addSource('points',{type:'geojson',data:makePoints(filteredFeatures)});
-  map.addSource('polygons',{type:'geojson',data:{type:'FeatureCollection',features:filteredFeatures}});
-  map.addSource('districts',{type:'geojson',data:districtsData});
-}
-
-function addLayers(){
-  map.addLayer({id:'points',type:'circle',source:'points',paint:{'circle-radius':6,'circle-color':'#0aa657'}});
-  map.addLayer({id:'poly-fill',type:'fill',source:'polygons',paint:{'fill-color':'#0aa657','fill-opacity':.5},filter:['==',['get','ID'],-1]});
-  map.addLayer({id:'poly-line',type:'line',source:'polygons',paint:{'line-color':'#056b3b','line-width':2},filter:['==',['get','ID'],-1]});
-  map.addLayer({id:'district-line',type:'line',source:'districts',paint:{'line-color':'#000','line-width':2}});
-  map.addLayer({id:'district-label',type:'symbol',source:'districts',layout:{'text-field':['get','String_'],'text-size':12}});
-}
-
-function bindMap(){
-  map.on('click','points',e=>selectFeature(e.features[0].properties.ID));
-}
-
-function applyFilters(zoom=true){
-  filteredFeatures=allFeatures.filter(f=>Object.entries(filterState).every(([k,v])=>!v||String(f.properties[k])===String(v)));
-  map.getSource('points').setData(makePoints(filteredFeatures));
-  map.getSource('polygons').setData({type:'FeatureCollection',features:filteredFeatures});
-  clearSelection();
-  populateFilters();
-  if(zoom) fit(filteredFeatures);
-}
-
-function bindUI(){
-  menuBtn.onclick=()=>{sidebar.classList.add('open');menuBtn.style.display='none'};
-  closeSidebar.onclick=()=>{sidebar.classList.remove('open');menuBtn.style.display='block'};
-  resetFilters.onclick=resetAll;
-  resetMapBtn.onclick=resetAll;
-
-  legendBtn.onclick=e=>{e.stopPropagation();legend.style.display=legend.style.display==='block'?'none':'block'};
-  document.addEventListener('click',e=>{if(!legend.contains(e.target)&&e.target!==legendBtn) legend.style.display='none'});
-
-  basemapBtn.onclick=()=>{
-    const selectedID=selectedFeature?.properties?.ID;
-    isSatellite=!isSatellite;
-    map.setStyle(isSatellite?'mapbox://styles/mapbox/satellite-streets-v12':'mapbox://styles/mapbox/light-v11');
-    map.once('style.load',()=>{fullInit();if(selectedID) selectFeature(selectedID,false)});
+  const FA = {
+    ID:'شناسه', Name:'نام', District:'منطقه', District_InOut:'موقعیت',
+    Capability:'قابلیت تدفین', Burial_Condition:'شرایط تدفین',
+    Burial_Status:'وضعیت تدفین', Burial_Capacity:'ظرفیت متوفی',
+    Burial_Price:'قیمت قبر', Burial_Average:'متوسط تدفین ماهانه',
+    Area:'مساحت', Proctor:'متولی'
   };
 
-  togglePoints.onchange=()=>map.setLayoutProperty('points','visibility',togglePoints.checked?'visible':'none');
-  toggleDistricts.onchange=()=>{
-    map.setLayoutProperty('district-line','visibility',toggleDistricts.checked?'visible':'none');
-    map.setLayoutProperty('district-label','visibility',toggleDistricts.checked?'visible':'none');
-  };
+  let map;
+  let all = [];
+  let filtered = [];
+  let districts = null;
+  let selected = null;
+  let isSat = false;
 
-  document.querySelectorAll('.accordion-header').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('active'));
+  const FILTER_ORDER = ['District','District_InOut','Capability','Burial_Condition','Burial_Status','Name'];
+  const state = { District:'', District_InOut:'', Capability:'', Burial_Condition:'', Burial_Status:'', Name:'' };
+  const layerVisibility = { pts:true, polys:true, districts:true };
 
-  Object.keys(filterState).forEach(k=>document.getElementById(k).onchange=e=>{filterState[k]=e.target.value;applyFilters()});
-  document.querySelectorAll('.clear').forEach(b=>b.onclick=()=>{filterState[b.dataset.key]='';applyFilters()});
-}
+  const $ = (id) => document.getElementById(id);
+  const sidebar = $('sidebar');
+  const menuBtn = $('menuBtn');
+  const closeSidebar = $('closeSidebar');
+  const legend = $('legend');
+  const basemapBtn = $('basemapBtn');
+  const bmLabel = $('bmLabel');
+  const legendBtn = $('legendBtn');
+  const resetMapBtn = $('resetMapBtn');
 
-function selectFeature(id,zoom=true){
-  selectedFeature=filteredFeatures.find(f=>f.properties.ID===id);
-  if(!selectedFeature)return;
+  const accFilters = $('accFilters');
+  const accProps = $('accProps');
+  const accPhotos = $('accPhotos');
+  const props = $('props');
+  const photos = $('photos');
+  const photosHint = $('photosHint');
+  const countBox = $('countBox');
 
-  map.setFilter('poly-fill',['==',['get','ID'],id]);
-  map.setFilter('poly-line',['==',['get','ID'],id]);
-  map.setLayoutProperty('points','visibility','none');
+  const fDistrict = $('fDistrict');
+  const fInOut = $('fInOut');
+  const fCap = $('fCap');
+  const fCond = $('fCond');
+  const fStatus = $('fStatus');
+  const fName = $('fName');
 
-  accFilters.classList.remove('active');accAttrs.classList.add('active');accImgs.classList.add('active');
-  sidebar.classList.add('open');menuBtn.style.display='none';
+  const xDistrict = $('xDistrict');
+  const xInOut = $('xInOut');
+  const xCap = $('xCap');
+  const xCond = $('xCond');
+  const xStatus = $('xStatus');
+  const xName = $('xName');
 
-  attrs.innerHTML='';Object.entries(selectedFeature.properties).forEach(([k,v])=>{attrs.innerHTML+=`<div><b>${FA_LABELS[k]||k}:</b> ${format(v)}</div>`;});
+  const chkPoints = $('chkPoints');
+  const chkPolys = $('chkPolys');
+  const chkDistricts = $('chkDistricts');
+  const resetFilters = $('resetFilters');
 
-  imgs.innerHTML='';for(let i=1;i<=4;i++){loadImage(`Pictures/${id}/${i}.png`);loadImage(`Pictures/${id}/${i}.jpg`);}
-  if(zoom) fit([selectedFeature]);
-}
+  function isMobile(){ return window.matchMedia('(max-width: 700px)').matches; }
+  function setMobileSidebarOpenFlag(){
+    if(!isMobile()){
+      document.body.classList.remove('mobileSidebarOpen');
+      return;
+    }
+    document.body.classList.toggle('mobileSidebarOpen', sidebar.classList.contains('open'));
+  }
 
-function clearSelection(){
-  selectedFeature=null;
-  map.setFilter('poly-fill',['==',['get','ID'],-1]);
-  map.setFilter('poly-line',['==',['get','ID'],-1]);
-  map.setLayoutProperty('points','visibility','visible');
-  attrs.innerHTML='';imgs.innerHTML='';
-  accAttrs.classList.remove('active');accImgs.classList.remove('active');
-}
+  function normalizeDigits(str){
+    return String(str ?? '')
+      .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  }
+  const collator = new Intl.Collator('fa', { numeric:true, sensitivity:'base' });
+  function smartSort(a,b){
+    const A = normalizeDigits(a), B = normalizeDigits(b);
+    const an = (A.trim()!=='' && !isNaN(A)) ? Number(A) : null;
+    const bn = (B.trim()!=='' && !isNaN(B)) ? Number(B) : null;
+    if(an!==null && bn!==null) return an-bn;
+    return collator.compare(A,B);
+  }
 
-function resetAll(){
-  Object.keys(filterState).forEach(k=>filterState[k]='');
-  applyFilters();
-}
+  function setFullscreen(on){
+    if(!isMobile()) return;
+    sidebar.classList.toggle('fullscreen', !!on);
+    document.body.classList.toggle('hideLogo', !!on);
+  }
+  let isFs=false, lastFsChange=0;
+  const ENTER_Y=32, EXIT_Y=4, COOLDOWN_MS=450;
+  function updateFullscreenFromScroll(){
+    if(!isMobile() || !selected) return;
+    const now=Date.now();
+    if(now-lastFsChange<COOLDOWN_MS) return;
+    const y=sidebar.scrollTop;
+    if(!isFs && y>ENTER_Y){ isFs=true; lastFsChange=now; setFullscreen(true); return; }
+    if(isFs && y<=EXIT_Y){ isFs=false; lastFsChange=now; setFullscreen(false); return; }
+  }
+  function bindMobileScrollToFullscreen(){
+    let ticking=false;
+    sidebar.addEventListener('scroll',()=>{
+      if(!isMobile()||!selected) return;
+      if(ticking) return;
+      ticking=true;
+      requestAnimationFrame(()=>{ updateFullscreenFromScroll(); ticking=false; });
+    },{passive:true});
+    sidebar.addEventListener('touchmove',()=>{
+      if(!isMobile()||!selected) return;
+      updateFullscreenFromScroll();
+    },{passive:true});
+  }
 
-function populateFilters(){
-  Object.keys(filterState).forEach(k=>{
-    const s=document.getElementById(k);const prev=filterState[k];s.innerHTML='<option value="">همه</option>';
-    [...new Set(allFeatures.map(f=>f.properties[k]))].sort((a,b)=>String(a).localeCompare(String(b),'fa')).forEach(v=>s.innerHTML+=`<option value="${v}">${v}</option>`);
-    s.value=prev;
+  function getAccContent(acc){ return acc.querySelector('.accordion-content'); }
+  function syncAccHeight(acc){
+    const c=getAccContent(acc); if(!c) return;
+    c.style.maxHeight = acc.classList.contains('active') ? (c.scrollHeight+'px') : '0px';
+  }
+  function setAccordion(acc, open){
+    const c=getAccContent(acc); if(!c) return;
+    if(open){
+      acc.classList.add('active');
+      c.style.maxHeight='0px';
+      requestAnimationFrame(()=>{ c.style.maxHeight = c.scrollHeight+'px'; });
+    }else{
+      c.style.maxHeight = c.scrollHeight+'px';
+      requestAnimationFrame(()=>{ c.style.maxHeight='0px'; });
+      acc.classList.remove('active');
+    }
+  }
+  function openFiltersAccordion(){ setAccordion(accFilters,true); setAccordion(accProps,false); setAccordion(accPhotos,false); }
+  function openDetailsAccordions(){ setAccordion(accFilters,false); setAccordion(accProps,true); setAccordion(accPhotos,true); }
+  function initAccordions(){
+    document.querySelectorAll('.accordion').forEach(acc=>{
+      const header=acc.querySelector('.accordion-header');
+      const content=getAccContent(acc);
+      if(content) content.style.maxHeight = acc.classList.contains('active') ? (content.scrollHeight+'px') : '0px';
+      if(header) header.onclick=()=>setAccordion(acc, !acc.classList.contains('active'));
+    });
+    window.addEventListener('resize',()=>document.querySelectorAll('.accordion').forEach(syncAccHeight));
+  }
+
+  function setBasemapPreview(){
+    if(isSat){
+      basemapBtn.classList.remove('preview-sat');
+      basemapBtn.classList.add('preview-map');
+      bmLabel.textContent='نقشه';
+    } else {
+      basemapBtn.classList.remove('preview-map');
+      basemapBtn.classList.add('preview-sat');
+      bmLabel.textContent='ماهواره';
+    }
+  }
+
+  function restoreToFiltersKeepZoom(){
+    state.Name='';
+    selected=null;
+    isFs=false;
+    setFullscreen(false);
+    clearSelection();
+    openFiltersAccordion();
+    sidebar.classList.add('open');
+    menuBtn.style.display='none';
+    setMobileSidebarOpenFlag();
+    applyFilters(false);
+  }
+
+  map=new mapboxgl.Map({
+    container:'map',
+    style:'https://api.parsimap.ir/styles/parsimap-streets-v11-gray?key=p142d0f3093fbf4d01b1cf8efd7b0ed26f8fc22926&service=true',
+    center:[51.4,35.7],
+    zoom:10
   });
-  document.querySelectorAll('.clear').forEach(b=>b.classList.toggle('enabled',filterState[b.dataset.key]));
-}
 
-function makePoints(fs){
-  return {type:'FeatureCollection',features:fs.map(f=>{
-    const c=f.geometry.coordinates[0];const s=c.reduce((a,b)=>[a[0]+b[0],a[1]+b[1]],[0,0]);
-    return {type:'Feature',geometry:{type:'Point',coordinates:[s[0]/c.length,s[1]/c.length]},properties:f.properties};
-  })};
-}
-function format(v){if(v===null||v===undefined)return'';if(!isNaN(v))return Number(v).toLocaleString('fa-IR');return v;}
-function loadImage(src){const im=new Image();im.src=src;im.onload=()=>imgs.appendChild(im);}
-function fit(fs){if(!fs.length)return;const c=fs.flatMap(f=>f.geometry.coordinates[0]);map.fitBounds(c.reduce((b,p)=>b.extend(p),new mapboxgl.LngLatBounds(c[0],c[0])),{padding:sidebar.classList.contains('open')?{left:380}:40});}
+  Promise.all([
+    fetch('Data.json').then(r=>r.json()),
+    fetch('Districts.json').then(r=>r.json())
+  ]).then(([d,dist])=>{
+    all=(d&&d.features)?d.features:[];
+    filtered=[...all];
+    districts=dist;
+
+    bindUIOnce();
+
+    map.on('load',()=>{
+      initAccordions();
+      buildStyle();
+      populateFiltersStepwise();
+      applyFilters(false);
+      bindMapBackgroundClick();
+      bindMobileScrollToFullscreen();
+      setBasemapPreview();
+    });
+  }).catch(err=>{
+    console.error(err);
+    alert('خطا در خواندن Data.json یا Districts.json');
+  });
+
+  map.on('style.load',()=>{
+    if(!districts || !all.length) return;
+    buildStyle();
+    syncSourcesData();
+    restoreLayerVisibility();
+    syncLegendCheckboxes();
+  });
+
+  function bindUIOnce(){
+    menuBtn.onclick=()=>{
+      sidebar.classList.add('open');
+      menuBtn.style.display='none';
+      setMobileSidebarOpenFlag();
+    };
+
+    closeSidebar.onclick=()=>{
+      if(!isMobile()){
+        sidebar.classList.remove('open');
+        menuBtn.style.display='block';
+        setMobileSidebarOpenFlag();
+        return;
+      }
+      if(selected || state.Name){
+        restoreToFiltersKeepZoom();
+      }else{
+        isFs=false; setFullscreen(false);
+        sidebar.classList.remove('open');
+        menuBtn.style.display='block';
+        setMobileSidebarOpenFlag();
+      }
+    };
+
+    legendBtn.onclick=(e)=>{
+      e.stopPropagation();
+      legend.style.display = (legend.style.display==='block')?'none':'block';
+    };
+    legend.addEventListener('click',e=>e.stopPropagation());
+    document.body.addEventListener('click',()=>{ legend.style.display='none'; });
+
+    basemapBtn.onclick=()=>{
+      isSat=!isSat;
+      map.setStyle(isSat ? 'https://api.parsimap.ir/styles/satellite-raster?key=p142d0f3093fbf4d01b1cf8efd7b0ed26f8fc22926&service=true' : 'https://api.parsimap.ir/styles/parsimap-streets-v11-gray?key=p142d0f3093fbf4d01b1cf8efd7b0ed26f8fc22926&service=true');
+      setBasemapPreview();
+    };
+
+    resetMapBtn.onclick=()=>{
+      Object.keys(state).forEach(k=>state[k]='');
+      selected=null;
+      isFs=false; setFullscreen(false);
+      applyFilters(true);
+      openFiltersAccordion();
+      clearSelection();
+      sidebar.classList.remove('open');
+      menuBtn.style.display='block';
+      setMobileSidebarOpenFlag();
+    };
+
+    chkPoints.onchange=()=>{ layerVisibility.pts=chkPoints.checked; setLayerVis('pts', layerVisibility.pts); };
+    chkPolys.onchange=()=>{ layerVisibility.polys=chkPolys.checked; setLayerVis('poly-fill', layerVisibility.polys); setLayerVis('poly-line', layerVisibility.polys); };
+    chkDistricts.onchange=()=>{ layerVisibility.districts=chkDistricts.checked; setLayerVis('district-line', layerVisibility.districts); setLayerVis('district-label', layerVisibility.districts); };
+
+    const closeFs=()=>{ isFs=false; setFullscreen(false); };
+
+    fDistrict.onchange=e=>{ state.District=e.target.value; closeFs(); applyFilters(true); };
+    fInOut.onchange=e=>{ state.District_InOut=e.target.value; closeFs(); applyFilters(true); };
+    fCap.onchange=e=>{ state.Capability=e.target.value; closeFs(); applyFilters(true); };
+    fCond.onchange=e=>{ state.Burial_Condition=e.target.value; closeFs(); applyFilters(true); };
+    fStatus.onchange=e=>{ state.Burial_Status=e.target.value; closeFs(); applyFilters(true); };
+    fName.onchange=e=>{ state.Name=e.target.value; closeFs(); applyFilters(true); };
+
+    xDistrict.onclick=()=>{ state.District=''; closeFs(); applyFilters(true); };
+    xInOut.onclick=()=>{ state.District_InOut=''; closeFs(); applyFilters(true); };
+    xCap.onclick=()=>{ state.Capability=''; closeFs(); applyFilters(true); };
+    xCond.onclick=()=>{ state.Burial_Condition=''; closeFs(); applyFilters(true); };
+    xStatus.onclick=()=>{ state.Burial_Status=''; closeFs(); applyFilters(true); };
+    xName.onclick=()=>{ state.Name=''; closeFs(); applyFilters(true); };
+
+    resetFilters.onclick=()=>{
+      Object.keys(state).forEach(k=>state[k]='');
+      closeFs();
+      applyFilters(true);
+      openFiltersAccordion();
+    };
+
+    window.addEventListener('resize', setMobileSidebarOpenFlag);
+  }
+
+  function buildStyle(){
+    if(!map.getSource('polys')) map.addSource('polys',{type:'geojson',data:fc(filtered)});
+    if(!map.getSource('pts')) map.addSource('pts',{type:'geojson',data:points(filtered)});
+    if(!map.getSource('districts')) map.addSource('districts',{type:'geojson',data:districts});
+
+    if(!map.getLayer('poly-fill')){
+      map.addLayer({id:'poly-fill',type:'fill',source:'polys',paint:{'fill-color':'#2e7d32','fill-opacity':0.35}});
+    }
+    if(!map.getLayer('poly-line')){
+      map.addLayer({id:'poly-line',type:'line',source:'polys',paint:{'line-color':'#1b5e20','line-width':1.5}});
+    }
+    if(!map.getLayer('pts')){
+      map.addLayer({id:'pts',type:'circle',source:'pts',paint:{'circle-radius':5,'circle-color':'#2e7d32','circle-stroke-color':'#fff','circle-stroke-width':1}});
+    }
+    if(!map.getLayer('district-line')){
+      map.addLayer({id:'district-line',type:'line',source:'districts',paint:{'line-color':'#000','line-width':2}});
+    }
+    if(!map.getLayer('district-label')){
+      map.addLayer({id:'district-label',type:'symbol',source:'districts',layout:{'text-field':['get','String_'],'text-size':12},paint:{'text-halo-color':'#fff','text-halo-width':1}});
+    }
+
+    try{ map.off('click','pts', onPointClick); }catch(e){}
+    try{ map.off('click','poly-fill', onPolyClick); }catch(e){}
+    map.on('click','pts', onPointClick);
+    map.on('click','poly-fill', onPolyClick);
+
+    restoreLayerVisibility();
+    syncLegendCheckboxes();
+  }
+
+  function onPointClick(e){ if(e?.features?.[0]?.properties?.ID!=null) selectFeature(e.features[0].properties.ID); }
+  function onPolyClick(e){ if(e?.features?.[0]?.properties?.ID!=null) selectFeature(e.features[0].properties.ID); }
+
+  function setLayerVis(id, vis){
+    if(!map.getLayer(id)) return;
+    map.setLayoutProperty(id,'visibility', vis?'visible':'none');
+  }
+  function restoreLayerVisibility(){
+    setLayerVis('pts', layerVisibility.pts);
+    setLayerVis('poly-fill', layerVisibility.polys);
+    setLayerVis('poly-line', layerVisibility.polys);
+    setLayerVis('district-line', layerVisibility.districts);
+    setLayerVis('district-label', layerVisibility.districts);
+  }
+  function syncLegendCheckboxes(){
+    chkPoints.checked=!!layerVisibility.pts;
+    chkPolys.checked=!!layerVisibility.polys;
+    chkDistricts.checked=!!layerVisibility.districts;
+  }
+
+  function matchesState(f, ignoreKey=null){
+    const p=f.properties||{};
+    return FILTER_ORDER.every(k=>{
+      if(k===ignoreKey) return true;
+      const v=state[k];
+      return !v || String(p[k])===String(v);
+    });
+  }
+  function availableValuesFor(key){
+    const set=new Set();
+    for(const f of all){
+      if(!matchesState(f,key)) continue;
+      const val=(f.properties||{})[key];
+      if(val===undefined||val===null||String(val).trim()==='') continue;
+      set.add(String(val));
+    }
+    return [...set].sort(smartSort);
+  }
+  function fillSelectStepwise(sel,key){
+    const prev=state[key]||'';
+    const values=availableValuesFor(key);
+    sel.innerHTML='<option value="">همه</option>'+values.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if(prev && !values.includes(String(prev))){ state[key]=''; sel.value=''; }
+    else sel.value=prev;
+  }
+  function updateClearButtons(){
+    xDistrict.disabled=!state.District;
+    xInOut.disabled=!state.District_InOut;
+    xCap.disabled=!state.Capability;
+    xCond.disabled=!state.Burial_Condition;
+    xStatus.disabled=!state.Burial_Status;
+    xName.disabled=!state.Name;
+  }
+  function populateFiltersStepwise(){
+    fillSelectStepwise(fDistrict,'District');
+    fillSelectStepwise(fInOut,'District_InOut');
+    fillSelectStepwise(fCap,'Capability');
+    fillSelectStepwise(fCond,'Burial_Condition');
+    fillSelectStepwise(fStatus,'Burial_Status');
+    fillSelectStepwise(fName,'Name');
+    updateClearButtons();
+  }
+
+  function applyFilters(zoom=true){
+    filtered=all.filter(f=>matchesState(f,null));
+    syncSourcesData();
+    populateFiltersStepwise();
+    countBox.textContent=`تعداد نتایج: ${toFa(filtered.length)}`;
+
+    const shouldAutoSelect = !!state.Name && filtered.length===1 && filtered[0]?.properties?.ID!=null;
+    if(shouldAutoSelect){ selectFeature(filtered[0].properties.ID); return; }
+
+    clearSelection();
+    openFiltersAccordion();
+    if(zoom) fitToFeatures(filtered);
+  }
+
+  function bindMapBackgroundClick(){
+    map.on('click',(e)=>{
+      const hits=map.queryRenderedFeatures(e.point,{layers:['pts','poly-fill']});
+      if(hits && hits.length) return;
+      if(!selected && !state.Name) return;
+      restoreToFiltersKeepZoom();
+    });
+  }
+
+  function selectFeature(id){
+    const idStr=String(id);
+    selected=filtered.find(f=>String((f.properties||{}).ID)===idStr)||null;
+    if(!selected) return;
+
+    sidebar.classList.add('open');
+    menuBtn.style.display='none';
+    setMobileSidebarOpenFlag();
+
+    openDetailsAccordions();
+
+    isFs=false; setFullscreen(false);
+    sidebar.scrollTo({top:0,behavior:'auto'});
+
+    const p=selected.properties||{};
+    props.innerHTML='';
+    Object.entries(p).forEach(([k,v])=>{
+      props.innerHTML += `<div style="margin:6px 0"><b>${escapeHtml(FA[k]||k)}:</b> ${escapeHtml(toFa(v))}</div>`;
+    });
+
+    photos.innerHTML='';
+    photosHint.textContent='';
+    let completed=0, found=0;
+    for(let i=1;i<=4;i++){
+      loadPhotoIfExists(idStr,i,(img)=>{
+        completed++;
+        if(img){ found++; photos.appendChild(img); }
+        if(completed===4 && found===0) photosHint.textContent='تصویری برای این مورد موجود نیست.';
+        if(completed===4 && found>0) photosHint.textContent='';
+        syncAccHeight(accPhotos);
+      });
+    }
+    syncAccHeight(accProps); syncAccHeight(accPhotos);
+
+    const ring=getPolygonRing(selected);
+    if(ring && ring.length){
+      const b=ring.reduce((bounds,pt)=>bounds.extend(pt), new mapboxgl.LngLatBounds(ring[0], ring[0]));
+      map.fitBounds(b,{padding:getFitPadding(),duration:800});
+    }
+  }
+
+  function loadPhotoIfExists(featureId, idx, done){
+    const base=`Pictures/${encodeURIComponent(featureId)}/${idx}`;
+    const img=new Image();
+    img.alt=`photo-${idx}`;
+    img.style.cursor='pointer';
+    img.addEventListener('click',()=>window.open(img.src,'_blank'));
+
+    let triedJpg=false;
+    img.onload=()=>done(img);
+    img.onerror=()=>{
+      if(!triedJpg){ triedJpg=true; img.src=`${base}.jpg`; }
+      else done(null);
+    };
+    img.src=`${base}.png`;
+  }
+
+  function clearSelection(){
+    props.innerHTML='';
+    photos.innerHTML='';
+    photosHint.textContent='';
+    syncAccHeight(accProps); syncAccHeight(accPhotos);
+  }
+
+  function fc(features){ return {type:'FeatureCollection',features:features||[]}; }
+
+  function getPolygonRing(feature){
+    const g=feature?.geometry; if(!g) return null;
+    if(g.type==='Polygon') return Array.isArray(g.coordinates?.[0]) ? g.coordinates[0] : null;
+    if(g.type==='MultiPolygon') return Array.isArray(g.coordinates?.[0]?.[0]) ? g.coordinates[0][0] : null;
+    return null;
+  }
+
+  function points(fs){
+    const feats=(fs||[]).map(f=>{
+      const ring=getPolygonRing(f); if(!ring||!ring.length) return null;
+      let x=0,y=0; ring.forEach(p=>{x+=p[0];y+=p[1]});
+      return {type:'Feature',geometry:{type:'Point',coordinates:[x/ring.length,y/ring.length]},properties:(f.properties||{})};
+    }).filter(Boolean);
+    return {type:'FeatureCollection',features:feats};
+  }
+
+  function syncSourcesData(){
+    if(map.getSource('polys')) map.getSource('polys').setData(fc(filtered));
+    if(map.getSource('pts')) map.getSource('pts').setData(points(filtered));
+  }
+
+  function fitToFeatures(fs){
+    if(!fs||!fs.length) return;
+    const pts=[];
+    for(const f of fs){
+      const ring=getPolygonRing(f);
+      if(ring && ring.length) pts.push(...ring);
+    }
+    if(!pts.length) return;
+    const b=pts.reduce((bounds,pt)=>bounds.extend(pt), new mapboxgl.LngLatBounds(pts[0],pts[0]));
+    map.fitBounds(b,{padding:getFitPadding(),duration:650});
+  }
+
+  function getFitPadding(){
+    if(!sidebar.classList.contains('open')) return 40;
+    if(isMobile()) return 30;
+    return {left:380,right:40,top:40,bottom:40};
+  }
+
+  function toFa(v){
+    if(v===null||v===undefined) return '';
+    const nv=normalizeDigits(v);
+    const n=(typeof v==='number')?v:(String(nv).trim()!=='' && !isNaN(nv) ? Number(nv) : null);
+    if(n!==null) return n.toLocaleString('fa-IR');
+    return String(v);
+  }
+
+  function escapeHtml(s){
+    return String(s??'')
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'","&#039;");
+  }
 </script>
 </body>
 </html>
